@@ -7,8 +7,11 @@ import (
 	"bookshelf-api/pkg/service"
 	"bookshelf-api/pkg/storage"
 	"bookshelf-api/pkg/storage/postgres"
+	"context"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 )
 
 const (
@@ -30,16 +33,32 @@ func main() {
 		log.Error("failed to init storage", slog.String("err", err.Error()))
 		os.Exit(1)
 	}
-	stor := storage.New(db)
-	services := service.New(stor)
+	repos := storage.New(db)
+	services := service.New(repos)
 	handlers := handler.New(services)
 
 	log.Info("starting server", slog.String("address", cfg.Address))
 	srv := new(bookshelf.Server)
-	if err := srv.Run(cfg, handlers.InitRoutes(log)); err != nil {
-		log.Error("failed to start server")
+	go func() {
+		if err := srv.Run(cfg, handlers.InitRoutes(log)); err != nil {
+			log.Error("failed to start server")
+		}
+	}()
+	log.Info("server started", slog.String("address", cfg.Address))
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT)
+	<-quit
+
+	log.Info("shutting down server")
+
+	if err := srv.Shutdown(context.Background()); err != nil {
+		log.Error("server shutdown failed", slog.String("err", err.Error()))
 	}
-	log.Error("server stopped")
+
+	if err := db.Close(); err != nil {
+		log.Error("failed to close database", slog.String("err", err.Error()))
+	}
 }
 
 func setupLogger(env string) *slog.Logger {

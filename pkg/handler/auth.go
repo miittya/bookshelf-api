@@ -2,10 +2,9 @@ package handler
 
 import (
 	bookshelf "bookshelf-api"
-	"errors"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
-	"io"
+	"github.com/go-playground/validator/v10"
 	"log/slog"
 	"net/http"
 )
@@ -29,34 +28,31 @@ func (h *Handler) SignUp(log *slog.Logger) http.HandlerFunc {
 		var input bookshelf.User
 
 		err := render.DecodeJSON(r.Body, &input)
-		if errors.Is(err, io.EOF) {
-			log.Error("request body is empty")
-
-			render.JSON(w, r, Error("empty request"))
-
+		if err != nil {
+			log.Error("invalid request")
+			render.Status(r, http.StatusBadRequest)
+			render.JSON(w, r, Error("invalid request"))
 			return
 		}
-		if err != nil {
-			log.Error("failed to decode request body", slog.Attr{
-				Key:   "error",
-				Value: slog.StringValue(err.Error()),
-			})
 
-			render.JSON(w, r, Error("failed to decode request"))
-
+		if err := validator.New().Struct(input); err != nil {
+			log.Error("invalid request")
+			render.Status(r, http.StatusBadRequest)
+			render.JSON(w, r, Error("invalid request"))
 			return
 		}
 		id, err := h.services.Authorization.CreateUser(input)
 		if err != nil {
 			log.Error(err.Error())
-			render.JSON(w, r, Error(err.Error()))
+
+			render.Status(r, http.StatusInternalServerError)
+			render.JSON(w, r, Error("cannot create user"))
 			return
 		}
 
 		log.Info("user has been created")
 		render.JSON(w, r, signUpResponse{
-			Response: OK(),
-			ID:       id,
+			ID: id,
 		})
 	}
 }
@@ -70,34 +66,28 @@ func (h *Handler) SignIn(log *slog.Logger) http.HandlerFunc {
 		var input bookshelf.User
 
 		err := render.DecodeJSON(r.Body, &input)
-		if errors.Is(err, io.EOF) {
-			log.Error("request body is empty")
-
-			render.JSON(w, r, Error("empty request"))
-
-			return
-		}
 		if err != nil {
-			log.Error("failed to decode request body", slog.Attr{
+			log.Error("invalid request", slog.Attr{
 				Key:   "error",
 				Value: slog.StringValue(err.Error()),
 			})
 
-			render.JSON(w, r, Error("failed to decode request"))
+			render.Status(r, http.StatusBadRequest)
+			render.JSON(w, r, Error("invalid request"))
 
 			return
 		}
 		token, err := h.services.Authorization.GenerateToken(input.Username, input.Password)
 		if err != nil {
 			log.Error(err.Error())
-			render.JSON(w, r, Error(err.Error()))
+			render.Status(r, http.StatusInternalServerError)
+			render.JSON(w, r, Error("cant generate token"))
 			return
 		}
 
-		log.Info("user has been created")
+		log.Info("token has been generated")
 		render.JSON(w, r, signInResponse{
-			Response: OK(),
-			Token:    token,
+			Token: token,
 		})
 	}
 }

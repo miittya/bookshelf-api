@@ -1,24 +1,19 @@
 package handler
 
 type Response struct {
-	Status string `json:"status"`
-	Error  string `json:"error,omitempty"`
+	Error string `json:"error,omitempty"`
 }
 
-const (
-	StatusOK    = "OK"
-	StatusError = "Error"
-)
+type Status struct {
+	Status string `json:"status"`
+}
 
-func OK() Response {
-	return Response{
-		Status: StatusOK,
-	}
+func OK() Status {
+	return Status{Status: "OK"}
 }
 
 func Error(msg string) Response {
 	return Response{
-		Status: StatusError,
-		Error:  msg,
+		Error: msg,
 	}
 }

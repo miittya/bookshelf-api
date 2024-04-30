@@ -5,12 +5,14 @@ import (
 	"bookshelf-api/pkg/storage"
 )
 
+//go:generate go run github.com/vektra/mockery/v2@v2.43.0 --name=Authorization
 type Authorization interface {
 	CreateUser(user bookshelf.User) (int, error)
 	GenerateToken(username, password string) (string, error)
 	ParseToken(token string) (int, error)
 }
 
+//go:generate go run github.com/vektra/mockery/v2@v2.43.0 --name=List
 type List interface {
 	Create(userID int, list bookshelf.List) (int, error)
 	GetAll(userID int) ([]bookshelf.List, error)
@@ -19,6 +21,7 @@ type List interface {
 	Delete(userID, listID int) error
 }
 
+//go:generate go run github.com/vektra/mockery/v2@v2.43.0 --name=Book
 type Book interface {
 	Create(userID, listID int, book bookshelf.Book) (int, error)
 	GetAll(userID, listID int) ([]bookshelf.Book, error)
