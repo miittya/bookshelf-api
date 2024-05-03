@@ -4,7 +4,7 @@ import "errors"
 
 type List struct {
 	ID          int    `json:"id" db:"id"`
-	Title       string `json:"title" db:"title"`
+	Title       string `json:"title" db:"title" validate:"required"`
 	Description string `json:"description" db:"description"`
 }
 

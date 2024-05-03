@@ -15,7 +15,7 @@ type List interface {
 	Create(userID int, list bookshelf.List) (int, error)
 	GetAll(userID int) ([]bookshelf.List, error)
 	GetByID(userID, listID int) (bookshelf.List, error)
-	Update(userID, listID int, input bookshelf.UpdateListInput) error
+	Update(userID, listID int, list bookshelf.List, input bookshelf.UpdateListInput) error
 	Delete(userID, listID int) error
 }
 

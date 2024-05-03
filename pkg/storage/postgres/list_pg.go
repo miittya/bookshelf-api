@@ -58,7 +58,7 @@ func (s *ListPostgres) GetAll(userID int) ([]bookshelf.List, error) {
 
 func (s *ListPostgres) GetByID(userID, listID int) (bookshelf.List, error) {
 	var list bookshelf.List
-	query := "SELECT l.id, l.title, l.description FROM lists l INNER JOIN users_lists ul on l.id=ul.list_id WHERE ul.user_id=$1 AND ul.list_id=$2"
+	query := "SELECT l.id, l.title, l.description FROM lists l INNER JOIN users_lists ul ON l.id=ul.list_id WHERE ul.user_id=$1 AND ul.list_id=$2"
 	row := s.db.QueryRow(query, userID, listID)
 	err := row.Scan(&list.ID, &list.Title, &list.Description)
 	if err != nil {
@@ -67,11 +67,7 @@ func (s *ListPostgres) GetByID(userID, listID int) (bookshelf.List, error) {
 	return list, nil
 }
 
-func (s *ListPostgres) Update(userID, listID int, input bookshelf.UpdateListInput) error {
-	list, err := s.GetByID(userID, listID)
-	if err != nil {
-		return err
-	}
+func (s *ListPostgres) Update(userID, listID int, list bookshelf.List, input bookshelf.UpdateListInput) error {
 	if input.Title == nil {
 		input.Title = &list.Title
 	}
@@ -79,7 +75,7 @@ func (s *ListPostgres) Update(userID, listID int, input bookshelf.UpdateListInpu
 		input.Description = &list.Description
 	}
 	query := "UPDATE lists l SET title = $1, description = $2 FROM users_lists ul WHERE l.id = ul.list_id AND ul.list_id = $3 AND ul.user_id = $4"
-	_, err = s.db.Exec(query, input.Title, input.Description, listID, userID)
+	_, err := s.db.Exec(query, input.Title, input.Description, listID, userID)
 	return err
 }
 

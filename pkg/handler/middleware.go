@@ -18,13 +18,15 @@ func (h *Handler) userIdentity(log *slog.Logger) func(next http.Handler) http.Ha
 			header := r.Header.Get(authHeader)
 			if header == "" {
 				log.Error("empty auth header")
+				render.Status(r, http.StatusUnauthorized)
 				render.JSON(w, r, Error("empty auth header"))
 				return
 			}
 
 			headerParts := strings.Split(header, " ")
-			if len(headerParts) != 2 {
+			if len(headerParts) != 2 || headerParts[0] != "Bearer" || headerParts[1] == "" {
 				log.Error("invalid auth header")
+				render.Status(r, http.StatusUnauthorized)
 				render.JSON(w, r, Error("invalid auth header"))
 				return
 			}
@@ -32,6 +34,7 @@ func (h *Handler) userIdentity(log *slog.Logger) func(next http.Handler) http.Ha
 			id, err := h.services.Authorization.ParseToken(headerParts[1])
 			if err != nil {
 				log.Error(err.Error())
+				render.Status(r, http.StatusUnauthorized)
 				render.JSON(w, r, Error(err.Error()))
 				return
 			}

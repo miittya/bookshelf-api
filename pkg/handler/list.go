@@ -4,6 +4,7 @@ import (
 	bookshelf "bookshelf-api"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
+	"github.com/go-playground/validator/v10"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -28,6 +29,12 @@ func (h *Handler) createList(log *slog.Logger) http.HandlerFunc {
 		if err := render.DecodeJSON(r.Body, &input); err != nil {
 			log.Error(err.Error())
 			render.Status(r, http.StatusInternalServerError)
+			render.JSON(w, r, Error("invalid request"))
+			return
+		}
+		if err := validator.New().Struct(input); err != nil {
+			log.Error(err.Error())
+			render.Status(r, http.StatusBadRequest)
 			render.JSON(w, r, Error("invalid request"))
 			return
 		}

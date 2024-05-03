@@ -29,7 +29,11 @@ func (s *ListService) Update(userID, listID int, input bookshelf.UpdateListInput
 	if err := input.Validate(); err != nil {
 		return err
 	}
-	return s.storage.Update(userID, listID, input)
+	list, err := s.GetByID(userID, listID)
+	if err != nil {
+		return err
+	}
+	return s.storage.Update(userID, listID, list, input)
 }
 
 func (s *ListService) Delete(userID, listID int) error {

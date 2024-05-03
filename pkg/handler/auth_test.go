@@ -6,6 +6,7 @@ import (
 	"bookshelf-api/pkg/service"
 	"bookshelf-api/pkg/service/mocks"
 	"bytes"
+	"database/sql"
 	"errors"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
@@ -97,6 +98,108 @@ func TestHandler_SignUp(t *testing.T) {
 			req, _ := http.NewRequest(http.MethodPost, "/sign-up", bytes.NewReader([]byte(tt.inputBody)))
 			w := httptest.NewRecorder()
 
+			r.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.expectedStatus, w.Code)
+			assert.Equal(t, tt.expectedBody, w.Body.String())
+		})
+	}
+}
+
+func TestHandler_SignIn(t *testing.T) {
+	type mockBehaviour func(auth *mocks.Authorization, user bookshelf.User)
+	tests := []struct {
+		name           string
+		inputBody      string
+		inputUser      bookshelf.User
+		mockBehaviour  mockBehaviour
+		expectedStatus int
+		expectedBody   string
+	}{
+		{
+			name:      "OK",
+			inputBody: `{"username":"test","password":"qwerty"}`,
+			inputUser: bookshelf.User{
+				Username: "test",
+				Password: "qwerty",
+			},
+			mockBehaviour: func(auth *mocks.Authorization, user bookshelf.User) {
+				auth.
+					On("GenerateToken", user.Username, user.Password).
+					Return("token", nil)
+			},
+			expectedStatus: http.StatusOK,
+			expectedBody:   "{\"token\":\"token\"}\n",
+		},
+		{
+			name:      "No password",
+			inputBody: `{"username":"test"}`,
+			inputUser: bookshelf.User{
+				Username: "test",
+			},
+			mockBehaviour:  func(auth *mocks.Authorization, user bookshelf.User) {},
+			expectedStatus: http.StatusBadRequest,
+			expectedBody:   "{\"error\":\"invalid request\"}\n",
+		},
+		{
+			name:      "No username",
+			inputBody: `{"password":"qwerty"}`,
+			inputUser: bookshelf.User{
+				Password: "qwerty",
+			},
+			mockBehaviour:  func(auth *mocks.Authorization, user bookshelf.User) {},
+			expectedStatus: http.StatusBadRequest,
+			expectedBody:   "{\"error\":\"invalid request\"}\n",
+		},
+		{
+			name:           "Empty request",
+			inputBody:      `{}`,
+			inputUser:      bookshelf.User{},
+			mockBehaviour:  func(auth *mocks.Authorization, user bookshelf.User) {},
+			expectedStatus: http.StatusBadRequest,
+			expectedBody:   "{\"error\":\"invalid request\"}\n",
+		},
+		{
+			name:      "No such user",
+			inputBody: `{"username":"test","password":"qwerty"}`,
+			inputUser: bookshelf.User{
+				Username: "test",
+				Password: "qwerty",
+			},
+			mockBehaviour: func(auth *mocks.Authorization, user bookshelf.User) {
+				auth.On("GenerateToken", user.Username, user.Password).
+					Return("", sql.ErrNoRows)
+			},
+			expectedStatus: http.StatusBadRequest,
+			expectedBody:   "{\"error\":\"no such user\"}\n",
+		},
+		{
+			name:      "Service error",
+			inputBody: `{"username":"test","password":"qwerty"}`,
+			inputUser: bookshelf.User{
+				Username: "test",
+				Password: "qwerty",
+			},
+			mockBehaviour: func(auth *mocks.Authorization, user bookshelf.User) {
+				auth.On("GenerateToken", user.Username, user.Password).
+					Return("", errors.New("some error"))
+			},
+			expectedStatus: http.StatusInternalServerError,
+			expectedBody:   "{\"error\":\"cannot generate token\"}\n",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			auth := mocks.NewAuthorization(t)
+			tt.mockBehaviour(auth, tt.inputUser)
+
+			services := &service.Service{Authorization: auth}
+			h := Handler{services}
+
+			r := chi.NewRouter()
+			r.Post("/sign-in", h.SignIn(slogdiscard.NewDiscardLogger()))
+			req, _ := http.NewRequest(http.MethodPost, "/sign-in", bytes.NewReader([]byte(tt.inputBody)))
+			w := httptest.NewRecorder()
 			r.ServeHTTP(w, req)
 
 			assert.Equal(t, tt.expectedStatus, w.Code)

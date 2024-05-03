@@ -2,6 +2,8 @@ package handler
 
 import (
 	bookshelf "bookshelf-api"
+	"database/sql"
+	"errors"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
 	"github.com/go-playground/validator/v10"
@@ -67,21 +69,28 @@ func (h *Handler) SignIn(log *slog.Logger) http.HandlerFunc {
 
 		err := render.DecodeJSON(r.Body, &input)
 		if err != nil {
-			log.Error("invalid request", slog.Attr{
-				Key:   "error",
-				Value: slog.StringValue(err.Error()),
-			})
-
+			log.Error("invalid request")
 			render.Status(r, http.StatusBadRequest)
 			render.JSON(w, r, Error("invalid request"))
-
+			return
+		}
+		if err := validator.New().Struct(input); err != nil {
+			log.Error("invalid request")
+			render.Status(r, http.StatusBadRequest)
+			render.JSON(w, r, Error("invalid request"))
 			return
 		}
 		token, err := h.services.Authorization.GenerateToken(input.Username, input.Password)
+		if errors.Is(err, sql.ErrNoRows) {
+			log.Error(err.Error())
+			render.Status(r, http.StatusBadRequest)
+			render.JSON(w, r, Error("no such user"))
+			return
+		}
 		if err != nil {
 			log.Error(err.Error())
 			render.Status(r, http.StatusInternalServerError)
-			render.JSON(w, r, Error("cant generate token"))
+			render.JSON(w, r, Error("cannot generate token"))
 			return
 		}
 
