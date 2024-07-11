@@ -20,6 +20,17 @@ const (
 	envProd  = "prod"
 )
 
+// @title Bookshelf API
+// @version 1.0
+// @description API server for bookshelf
+
+// @host localhost:8081
+// @BasePath /
+
+// @securityDefinition.apikey ApiKeyAuth
+// @in header
+// @name Authorization
+
 func main() {
 	cfg := config.MustLoad()
 	log := setupLogger(cfg.Env)
